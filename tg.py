@@ -11,8 +11,8 @@ from telethon.sessions import StringSession
 API_ID = int(os.environ.get("API_ID"))
 API_HASH = os.environ.get("API_HASH")
 SESSION_STRING = os.environ.get("SESSION_STRING")
-BOT_USERNAME = os.environ.get("BOT_USERNAME", "@Itzdhruvusernu_bot")
-API_KEY = os.environ.get("API_KEY", "default_key")
+BOT_USERNAME = os.environ.get("BOT_USERNAME")
+API_KEY = os.environ.get("API_KEY")
 
 # ============================================================
 # GLOBALS
@@ -111,15 +111,15 @@ async def fast_search(user_id: str):
                             "telegram_id": parsed.get('telegram_id'),
                             "query_id": user_id,
                             "response_time": f"{_ * 0.5:.1f}s",
-                            "credit": "MASTEROFOSINTS"
+                            "credit": "SALAARTHEBOSS"
                         }
             
             await asyncio.sleep(0.5)  # Check every 0.5 seconds
         
-        return {"status": "error", "message": "Timeout", "credit": "MASTEROFOSINTS"}
+        return {"status": "error", "message": "Timeout", "credit": "SALAARTHEBOSS"}
         
     except Exception as e:
-        return {"status": "error", "message": str(e), "credit": "MASTEROFOSINTS"}
+        return {"status": "error", "message": str(e), "credit": "SALAARTHEBOSS"}
 
 # ============================================================
 # API MIDDLEWARE
@@ -137,7 +137,7 @@ def home():
     return jsonify({
         "service": "Fast Telegram Search API",
         "usage": "/search?id=ID&key=KEY",
-        "credit": "MASTEROFOSINTS"
+        "credit": "SALAARTHEBOSS"
     })
 
 @app.route('/search')
@@ -162,7 +162,7 @@ def status():
     return jsonify({
         "status": "online" if client and client.is_connected() else "offline",
         "bot": BOT_USERNAME,
-        "credit": "MASTEROFOSINTS"
+        "credit": "SALAARTHEBOSS"
     })
 
 # ============================================================
