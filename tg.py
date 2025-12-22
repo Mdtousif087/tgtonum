@@ -23,37 +23,53 @@ bot_entity = None
 loop = None
 
 # ============================================================
-# FAST PARSER
+# CORRECT PARSER
 # ============================================================
-def fast_parse(text: str):
-    """Optimized parsing without multiple regex calls"""
+def parse_bot_response(text: str):
+    """Correct parsing for bot format"""
     data = {}
     
     if not text:
         return data
     
-    # Find all backtick content at once
-    backticks = re.findall(r'`([^`]+)`', text)
+    # DEBUG: Show what we're parsing
+    print(f"Parsing text: {text[:100]}...")
     
-    # Phone usually 2nd backtick (after Country Code)
-    if len(backticks) >= 2:
-        # Check if it's phone number
-        for item in backticks:
-            if item.replace('+', '').isdigit() and len(item) >= 10:
-                data['phone_number'] = item
-                break
+    # 1. Phone Number (EXACT pattern from bot)
+    phone_match = re.search(r"Phone Number:\s*`(\+?\d+)`", text)
+    if phone_match:
+        data['phone_number'] = phone_match.group(1)
+        print(f"✅ Found phone: {data['phone_number']}")
+    else:
+        # Try alternative pattern
+        phone_match = re.search(r"📞 Phone Number:\s*`(\+?\d+)`", text)
+        if phone_match:
+            data['phone_number'] = phone_match.group(1)
+            print(f"✅ Found phone (emoji): {data['phone_number']}")
     
-    # Country (no backticks)
-    country_match = re.search(r'Country:\s*([^\n`]+)', text)
+    # 2. Country
+    country_match = re.search(r"Country:\s*([^\n`]+)", text)
     if country_match:
-        data['country'] = country_match.group(1).strip()
+        country = country_match.group(1).strip()
+        # Clean up
+        if '└' in country:
+            country = country.split('└')[0].strip()
+        if '├' in country:
+            country = country.split('├')[0].strip()
+        data['country'] = country
+        print(f"✅ Found country: {data['country']}")
     
-    # Telegram ID (first backtick usually)
-    if backticks:
-        for item in backticks:
-            if item.isdigit() and len(item) >= 8:
-                data['telegram_id'] = item
-                break
+    # 3. Country Code
+    code_match = re.search(r"Country Code:\s*`(\+\d+)`", text)
+    if code_match:
+        data['country_code'] = code_match.group(1)
+        print(f"✅ Found code: {data['country_code']}")
+    
+    # 4. Telegram ID (Query ID)
+    id_match = re.search(r"Query ID:\s*`(\d+)`", text)
+    if id_match:
+        data['telegram_id'] = id_match.group(1)
+        print(f"✅ Found ID: {data['telegram_id']}")
     
     return data
 
@@ -70,7 +86,7 @@ def init_telegram():
     
     client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
     
-    # Connect in background
+    # Connect
     loop.run_until_complete(client.connect())
     
     if not loop.run_until_complete(client.is_user_authorized()):
@@ -80,41 +96,49 @@ def init_telegram():
     print(f"✅ Connected to {BOT_USERNAME}")
 
 # ============================================================
-# FAST SEARCH FUNCTION
+# SEARCH FUNCTION
 # ============================================================
-async def fast_search(user_id: str):
-    """Optimized search with minimal delays"""
+async def search_user(user_id: str):
+    """Search for user by ID"""
     try:
-        # Send both messages quickly
-        await asyncio.gather(
-            client.send_message(bot_entity, "Usᴇʀɴᴀᴍᴇ ᴛᴏ ɴᴜᴍ"),
-            asyncio.sleep(0.1)
-        )
+        # Step 1: Send "Usᴇʀɴᴀᴍᴇ ᴛᴏ ɴᴜᴍ"
+        await client.send_message(bot_entity, "Usᴇʀɴᴀᴍᴇ ᴛᴏ ɴᴜᴍ")
+        await asyncio.sleep(1.5)
         
-        await asyncio.sleep(1)  # Reduced wait
-        
+        # Step 2: Send user ID
         await client.send_message(bot_entity, user_id)
         
-        # Wait for response with timeout
-        for _ in range(15):  # 15 * 0.5 = 7.5 seconds max
+        # Step 3: Wait for response
+        start_time = asyncio.get_event_loop().time()
+        
+        while asyncio.get_event_loop().time() - start_time < 10:  # 10 second timeout
             messages = await client.get_messages(bot_entity, limit=3)
             
             for msg in messages:
                 if msg.text and "User Information Lookup" in msg.text:
-                    parsed = fast_parse(msg.text)
+                    parsed = parse_bot_response(msg.text)
                     
-                    if parsed.get('phone_number'):
+                    # Verify we got phone (not user ID)
+                    if parsed.get('phone_number') and parsed.get('phone_number') != user_id:
                         return {
                             "status": "success",
                             "phone_number": parsed.get('phone_number'),
                             "country": parsed.get('country'),
+                            "country_code": parsed.get('country_code'),
                             "telegram_id": parsed.get('telegram_id'),
                             "query_id": user_id,
-                            "response_time": f"{_ * 0.5:.1f}s",
+                            "credit": "SALAARTHEBOSS"
+                        }
+                    else:
+                        # Phone not found or phone == user_id (wrong)
+                        return {
+                            "status": "error",
+                            "message": f"Parsing issue. Phone: {parsed.get('phone_number')}, Expected different from ID",
+                            "parsed_data": parsed,
                             "credit": "SALAARTHEBOSS"
                         }
             
-            await asyncio.sleep(0.5)  # Check every 0.5 seconds
+            await asyncio.sleep(0.5)
         
         return {"status": "error", "message": "Timeout", "credit": "SALAARTHEBOSS"}
         
@@ -125,34 +149,32 @@ async def fast_search(user_id: str):
 # API MIDDLEWARE
 # ============================================================
 def check_key():
-    """Fast key verification"""
+    """API key verification"""
     key = request.args.get('key')
     return key and key == API_KEY
 
 # ============================================================
-# FLASK ROUTES (OPTIMIZED)
+# FLASK ROUTES
 # ============================================================
 @app.route('/')
 def home():
     return jsonify({
-        "service": "Fast Telegram Search API",
-        "usage": "/search?id=ID&key=KEY",
+        "service": "Telegram User Search API",
+        "usage": "GET /search?id=USER_ID&key=API_KEY",
         "credit": "SALAARTHEBOSS"
     })
 
 @app.route('/search')
 def search():
-    # Fast validation
     if not check_key():
-        return jsonify({"error": "Invalid key"}), 403
+        return jsonify({"error": "Invalid or missing API key"}), 403
     
     user_id = request.args.get('id')
     if not user_id or not user_id.isdigit():
-        return jsonify({"error": "Invalid ID"}), 400
+        return jsonify({"error": "Invalid user ID"}), 400
     
-    # Run search
     try:
-        result = loop.run_until_complete(fast_search(user_id))
+        result = loop.run_until_complete(search_user(user_id))
         return jsonify(result)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -168,10 +190,9 @@ def status():
 # ============================================================
 # STARTUP
 # ============================================================
-# Initialize on import (Vercel serverless)
 try:
     init_telegram()
-    print("🚀 Fast API Ready!")
+    print("🚀 API Ready!")
 except Exception as e:
     print(f"❌ Startup error: {e}")
 
