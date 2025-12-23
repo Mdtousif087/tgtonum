@@ -140,7 +140,7 @@ async def search_user(user_id: str):
             
             await asyncio.sleep(0.3)
         
-        return {"status": "error", "message": "no data found 👀", "credit": "SALAARTHEBOSS"}
+        return {"status": "error", "message": "no data found this number", "credit": "SALAARTHEBOSS"}
         
     except Exception as e:
         return {"status": "error", "message": str(e), "credit": "SALAARTHEBOSS"}
