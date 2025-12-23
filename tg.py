@@ -103,7 +103,7 @@ async def search_user(user_id: str):
     try:
         # Step 1: Send "Usᴇʀɴᴀᴍᴇ ᴛᴏ ɴᴜᴍ"
         await client.send_message(bot_entity, "Usᴇʀɴᴀᴍᴇ ᴛᴏ ɴᴜᴍ")
-        await asyncio.sleep(1.5)
+        await asyncio.sleep(1)
         
         # Step 2: Send user ID
         await client.send_message(bot_entity, user_id)
@@ -111,7 +111,7 @@ async def search_user(user_id: str):
         # Step 3: Wait for response
         start_time = asyncio.get_event_loop().time()
         
-        while asyncio.get_event_loop().time() - start_time < 10:  # 10 second timeout
+        while asyncio.get_event_loop().time() - start_time < 3:  # 10 second timeout
             messages = await client.get_messages(bot_entity, limit=3)
             
             for msg in messages:
@@ -138,9 +138,9 @@ async def search_user(user_id: str):
                             "credit": "SALAARTHEBOSS"
                         }
             
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(0.3)
         
-        return {"status": "error", "message": "Timeout", "credit": "SALAARTHEBOSS"}
+        return {"status": "error", "message": "no data found 👀", "credit": "SALAARTHEBOSS"}
         
     except Exception as e:
         return {"status": "error", "message": str(e), "credit": "SALAARTHEBOSS"}
